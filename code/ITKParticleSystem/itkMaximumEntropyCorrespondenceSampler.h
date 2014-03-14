@@ -212,11 +212,15 @@ public:
     m_EnsembleNormalPenaltyFunction->SetDomainsPerShape(n);
   }
 
-  void SetTimeptsPerIndividual(int n)
+  void SetTimeptsPerIndividual(vnl_vector<int> & v)
   {
-    m_MixedEffectsShapeMatrix->SetTimeptsPerIndividual(n);
+    m_MixedEffectsShapeMatrix->SetTimeptsPerIndividual(v);
   }
 
+  void SetNumIndividuals(int i)
+  {
+    m_MixedEffectsShapeMatrix->SetNumIndividuals(i);
+  }
 
   int GetCorrespondenceMode() const
   { return m_CorrespondenceMode; }

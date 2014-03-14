@@ -74,33 +74,35 @@ class ShapeWorksRunApp
     // Optimize
     if ( m_processing_mode >= 2 || m_processing_mode == -2) this->Optimize();
   }
+
   virtual void RunProcrustes()
   {
     this->optimize_stop();
     m_Procrustes->RunRegistration();
   }
+
   virtual void SetIterationCommand()
   {
     m_Iteratecmd  = itk::MemberCommand<ShapeWorksRunApp>::New();
     m_Iteratecmd->SetCallbackFunction(this, &ShapeWorksRunApp::IterateCallback);
     m_Sampler->GetOptimizer()->AddObserver(itk::IterationEvent(), m_Iteratecmd);
   }
-  
+
   void SetUserParameters(const char *fname);
-  
+
   virtual void SplitAllParticles()
   {
    this->optimize_stop();
-		m_Sampler->GetParticleSystem()->SplitAllParticles(m_spacing);
+   m_Sampler->GetParticleSystem()->SplitAllParticles(m_spacing);
   }
-  
+
   virtual void WriteModes()
   {
-	const int n = m_Sampler->GetParticleSystem()->GetNumberOfDomains();
+    const int n = m_Sampler->GetParticleSystem()->GetNumberOfDomains();
     if ( n >= 5 )
-	{
-		m_Sampler->GetEnsembleEntropyFunction()->WriteModes(m_output_points_prefix,5);
-	}
+    {
+      m_Sampler->GetEnsembleEntropyFunction()->WriteModes(m_output_points_prefix,5);
+    }
   }
 
   // "iter" param used if "keep_checkpoints" param is set to 1.
@@ -117,10 +119,10 @@ class ShapeWorksRunApp
 protected:
   typename itk::MaximumEntropyCorrespondenceSampler<ImageType>::Pointer m_Sampler;
   typename itk::ParticleProcrustesRegistration<3>::Pointer m_Procrustes;
-  
+
   int m_CheckpointCounter;
   int m_ProcrustesCounter;
-  
+
   static ITK_THREAD_RETURN_TYPE optimize_callback( void *arg );
   //  static ITK_THREAD_RETURN_TYPE auto_init_callback( void *arg );  
 
@@ -153,7 +155,8 @@ protected:
   unsigned int m_attributes_per_domain;
   unsigned int m_checkpointing_interval;
   unsigned int m_domains_per_shape;
-  unsigned int m_timepts_per_subject;
+  vnl_vector<int> m_timepts_per_subject;
+  int m_num_subjects;
   std::string m_transform_file;
   std::string m_prefix_transform_file;
   unsigned int m_procrustes_interval;

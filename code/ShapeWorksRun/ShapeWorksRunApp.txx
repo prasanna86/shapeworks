@@ -53,6 +53,7 @@ ShapeWorksRunApp<SAMPLERTYPE>::ShapeWorksRunApp(const char *fn)
   // Set up the optimization process
   m_Sampler = itk::MaximumEntropyCorrespondenceSampler<ImageType>::New();  
   m_Sampler->SetDomainsPerShape(m_domains_per_shape); // must be done first!
+  m_Sampler->SetNumIndividuals(m_num_subjects);
   m_Sampler->SetTimeptsPerIndividual(m_timepts_per_subject);
 
   // Set up the procrustes registration object.
@@ -60,15 +61,15 @@ ShapeWorksRunApp<SAMPLERTYPE>::ShapeWorksRunApp(const char *fn)
   m_Procrustes->SetParticleSystem(m_Sampler->GetParticleSystem());
   m_Procrustes->SetDomainsPerShape(m_domains_per_shape);
   if (m_procrustes_scaling == 0)
-    {
+  {
     m_Procrustes->ScalingOff();
     std::cout << "Procrustes scaling is off" << std::endl;
-    }
+  }
   else
-    {
+  {
     m_Procrustes->ScalingOn();
     std::cout << "Procrustes scaling is on" << std::endl;
-    }
+  }
 
   //   // Read fixed scales if present
   //   std::vector<double> fs;
@@ -106,76 +107,74 @@ ShapeWorksRunApp<SAMPLERTYPE>::IterateCallback(itk::Object *, const itk::EventOb
   std::cout.flush();
 
   if (m_optimizing == false) return;
-  
+
   if (m_procrustes_interval != 0 && m_disable_procrustes == false)
-    {
+  {
     m_ProcrustesCounter++;
 
     if (m_ProcrustesCounter >= (int)m_procrustes_interval)
-      {
+    {
       m_ProcrustesCounter = 0;
       m_Procrustes->RunRegistration();
-      }
     }
-  
+  }
+
   static unsigned int iteration_no = 0;
   // Checkpointing
   if (m_checkpointing_interval != 0 && m_disable_checkpointing == false)
+  {
+    m_CheckpointCounter++;
+    // if (m_CheckpointCounter > (int)m_checkpointing_interval)
+    //   {
+    //   m_CheckpointCounter = 0;
+    //   this->WritePointFiles();
+    //   this->WriteTransformFile();
+    //   this->WriteModes();
+    // if (m_use_regression == true) this->WriteParameters();
+    //   }
+
+    if (m_CheckpointCounter == (int)m_checkpointing_interval)
     {
-    
-		m_CheckpointCounter++;
-   // if (m_CheckpointCounter > (int)m_checkpointing_interval)
-   //   {
-   //   m_CheckpointCounter = 0;
-   //   this->WritePointFiles();
-   //   this->WriteTransformFile();
-   //   this->WriteModes();
-			//if (m_use_regression == true) this->WriteParameters();
-   //   }
+      iteration_no += m_checkpointing_interval;
+      m_CheckpointCounter = 0;
 
-		if (m_CheckpointCounter == (int)m_checkpointing_interval)
-		{
-		  iteration_no += m_checkpointing_interval;
-		  m_CheckpointCounter = 0;
+      this->WritePointFiles();
+      this->WriteTransformFile();
+      this->WriteModes();
 
-		  this->WritePointFiles();
-		  this->WriteTransformFile();
-		  this->WriteModes();
-		  if (m_use_regression == true) this->WriteParameters();
-
-		  if ( m_keep_checkpoints )
-		  {
-			  std::stringstream ss;
-			  ss << iteration_no + m_optimization_iterations_completed;
-			  std::string dir_name = "iter" + ss.str();
-			  std::string tmp_dir_name = std::string(".") + dir_name;
+      if (m_use_regression == true) this->WriteParameters();
+      if ( m_keep_checkpoints )
+      {
+	std::stringstream ss;
+	ss << iteration_no + m_optimization_iterations_completed;
+	std::string dir_name = "iter" + ss.str();
+	std::string tmp_dir_name = std::string(".") + dir_name;
 
 #ifdef _WIN32
-			  mkdir( tmp_dir_name.c_str() );
+	mkdir( tmp_dir_name.c_str() );
 #else
-			  mkdir( tmp_dir_name.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+	mkdir( tmp_dir_name.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
 #endif
-			this->WritePointFiles( iteration_no );
-			this->WriteTransformFile( iteration_no );
-			/*if (m_use_regression == true) */this->WriteParameters( iteration_no );
+	this->WritePointFiles( iteration_no );
+	this->WriteTransformFile( iteration_no );
+	/*if (m_use_regression == true) */this->WriteParameters( iteration_no );
 
-			rename( tmp_dir_name.c_str(), dir_name.c_str() );
-		  }
-		}
-     }
+	rename( tmp_dir_name.c_str(), dir_name.c_str() );
+      }
+    }
+  }
 
   if ( m_Sampler->GetEnsembleEntropyFunction()->GetMinimumVariance()  <= m_ending_regularization )
-    {
+  {
     this->optimize_stop();
-    };
-    
+  };
+  
   //    this->surface_gradmag->value( m_Sampler->GetLinkingFunction()->GetAverageGradMagA());
   //    this->correspondence_gradmag->value( m_Sampler->GetLinkingFunction()->GetAverageGradMagB()
   //                                         * m_Sampler->GetLinkingFunction()->GetRelativeGradientScaling());
   //    this->surface_energy->value( m_Sampler->GetLinkingFunction()->GetAverageEnergyA());
   //    this->correspondence_energy->value( m_Sampler->GetLinkingFunction()->GetAverageEnergyB()
   //                                        * m_Sampler->GetLinkingFunction()->GetRelativeEnergyScaling());
-  
 }
 
 template < class SAMPLERTYPE>
@@ -673,6 +672,7 @@ ShapeWorksRunApp<SAMPLERTYPE>::SetUserParameters(const char *fname)
 
   TiXmlDocument doc(fname);
   bool loadOkay = doc.LoadFile();
+  std::istringstream inputsBuffer;
 
   if (loadOkay)
   {
@@ -709,9 +709,47 @@ ShapeWorksRunApp<SAMPLERTYPE>::SetUserParameters(const char *fname)
     elem = docHandle.FirstChild( "domains_per_shape" ).Element();
     if (elem) this->m_domains_per_shape = atoi(elem->GetText());
 
-    this->m_timepts_per_subject = 1;
+    // this should be first in the parameter file
+    this->m_num_subjects = 1;
+    elem = docHandle.FirstChild( "num_subjects" ).Element();
+    if (elem) this->m_num_subjects = atoi(elem->GetText());
+
+    // load timepts per subject
+    vnl_vector<int> timepts; timepts.set_size(1000);
+    int tp, count = 0;
     elem = docHandle.FirstChild( "timepts_per_subject" ).Element();
-    if (elem) this->m_timepts_per_subject = atoi(elem->GetText());
+    if(elem)
+    {
+      inputsBuffer.str(elem->GetText());
+      while (inputsBuffer >> tp)
+      {
+        timepts(count) = tp;
+	count++;
+      }
+
+      (this->m_timepts_per_subject).set_size(count);
+      for(int i = 0; i < count; i++)
+	(this->m_timepts_per_subject)(i) = timepts(i);
+
+      count = 0;
+      timepts.clear();
+      inputsBuffer.clear();
+      inputsBuffer.str("");
+    }
+
+    // use mixed effects
+    this->m_use_mixed_effects = false;
+    tp = (this->m_timepts_per_subject).size();
+    int j = 0;
+    while(j < tp)
+    {
+      if ((this->m_timepts_per_subject)(j) > 1)
+      {
+	this->m_use_mixed_effects = true;
+	j = tp;
+      }
+      j++;
+    }
 
     this->m_starting_regularization = 500.0;
     elem = docHandle.FirstChild( "starting_regularization" ).Element();
@@ -811,6 +849,8 @@ ShapeWorksRunApp<SAMPLERTYPE>::SetUserParameters(const char *fname)
   std::cout << "m_output_points_prefix = " << m_output_points_prefix << std::endl;
   std::cout << "m_output_transform_file = " << m_output_transform_file << std::endl;
   std::cout << "m_domains_per_shape = " << m_domains_per_shape << std::endl;
+
+  std::cout << "m_num_subjects = " << m_num_subjects << std::endl;
   std::cout << "m_timepts_per_subject = " << m_timepts_per_subject << std::endl;
   std::cout << "m_starting_regularization = " << m_starting_regularization << std::endl;
   std::cout << "m_ending_regularization = " << m_ending_regularization << std::endl;
@@ -1098,7 +1138,6 @@ ShapeWorksRunApp<SAMPLERTYPE>::ReadExplanatoryVariables(const char *fname)
         (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->SetExplanatory(evars);
 
       m_use_regression = true;
-      if (this->m_timepts_per_subject > 1) m_use_mixed_effects = true;
     }
   } 
 }
