@@ -44,19 +44,19 @@ int ParticleShapeStatistics<VDimension>
   double     n = static_cast<double>(y.size());
    
   for (unsigned int i = 0; i < y.size(); i++)
-    {
+  {
     xmean += x[i];
     ymean += y[i];
-    }
+  }
   xmean /= n;
   ymean /= n;
 
   for (unsigned int i = 0; i < y.size(); i++)
-    {
+  {
     double xm = x[i] - xmean;    
     cross += xm * (y[i] - ymean);
     xvar  += xm * xm;
-    }
+  }
 
   b = cross / xvar;
   a = ymean - (b * xmean);
@@ -74,32 +74,32 @@ int ParticleShapeStatistics<VDimension>
   // Compile list of indices for groupIDs == ID
   std::vector<unsigned int> set;
   for (unsigned int i = 0; i < m_groupIDs.size(); i++)
-    {
-    
+  {  
     if (m_groupIDs[i] == ID || ID == -32) // -32 means use both groups
-      {
+    {
       //      std::cout << i << " -> " << m_groupIDs[i] << " =? " << ID << std::endl;
-      set.push_back(i); }
+      set.push_back(i);
     }
+  }
 
   // Find min sum L1 norms
   for (unsigned int i = 0; i < set.size(); i++)
-    {
+  {
     double sum = 0.0;
     //    std::cout << "set[" << i << "] = " << set[i] << std::endl;
-    
+
     for (unsigned int j = 0; j < set.size(); j++)
-      {
+    {
       if (i != j) sum += this->L1Norm(set[i],set[j]);
       // std::cout << set[j] << "\t" << this->L1Norm(set[i],set[j]) << std::endl;
-      }
+    }
     //    std::cout << sum << std::endl;
     if (sum < min_L1)
-      {
+    {
       min_L1 = sum;
       ret = static_cast<int>(set[i]);
-      }
     }
+  }
   //  std::cout << "min_L1 = " << min_L1 << std::endl;
   //  std::cout << "index = " << ret << std::endl;
   return ret; // if there has been some error ret == -1
@@ -111,12 +111,10 @@ double ParticleShapeStatistics<VDimension>
 {
   double norm = 0.0;
   for (unsigned int i = 0; i < m_shapes.rows(); i++)
-    {
     norm += fabs(m_shapes(i,a) - m_shapes(i,b));
-    }
+
   return norm;
 }
-
 
 template <unsigned int VDimension>
 int ParticleShapeStatistics<VDimension>
@@ -139,8 +137,7 @@ int ParticleShapeStatistics<VDimension>
     while (inputsBuffer >> ptFileName)
     {
       pointsfiles.push_back(ptFileName);
-
-	  m_pointsfiles.push_back( ptFileName ); // Keep the points' files to reload.
+      m_pointsfiles.push_back( ptFileName ); // Keep the points' files to reload.
     }
     inputsBuffer.clear();
     inputsBuffer.str("");
@@ -159,6 +156,23 @@ int ParticleShapeStatistics<VDimension>
   m_numSamples = pointsfiles.size() / m_domainsPerShape;
   m_numDimensions = reader1->GetOutput().size() * VDimension * m_domainsPerShape;
 
+  // *********** read vector files if present ************
+  std::vector< std::string > vectorsfiles;
+  std::string vecFileName;
+
+  elem = docHandle.FirstChild( "vectors" ).Element();
+  if (elem)
+  {
+    inputsBuffer.str(elem->GetText());
+    while (inputsBuffer >> vecFileName)
+    {
+      vectorsfiles.push_back(vecFileName);
+      m_vectorsfiles.push_back( vecFileName ); // Keep the vectors files to reload.
+    }
+    inputsBuffer.clear();
+    inputsBuffer.str("");
+  }
+
   // Read the group ids
   int tmpID;
   elem = docHandle.FirstChild( "group_ids" ).Element();
@@ -176,26 +190,27 @@ int ParticleShapeStatistics<VDimension>
 
   // If there are no group IDs, make up some bogus ones
   if (m_groupIDs.size() != m_numSamples)
-    {
+  {
     if (m_groupIDs.size() > 0)
-      {
+    {
       std::cerr << "Group ID list does not match shape list in size." << std::endl;
       return 1;
-      }
-    
+    }
+
     m_groupIDs.resize(m_numSamples);
     for (unsigned int k = 0; k < m_numSamples / 2; k++)
-      {
+    {
       m_groupIDs[k] = 1;
       m_numSamples1++;
-      }
+    }
     for (unsigned int k = m_numSamples / 2; k < m_numSamples; k++)
-      {
+    {
       m_groupIDs[k] = 2;
       m_numSamples2++;
-      }
-    };
+    }
+  };
 
+  // setting global mean variables
   m_pointsMinusMean.set_size(m_numDimensions, m_numSamples);
   m_shapes.set_size(m_numDimensions, m_numSamples);
   m_mean.set_size(m_numDimensions);
@@ -208,9 +223,9 @@ int ParticleShapeStatistics<VDimension>
 
   // Compile the "meta shapes"
   for (unsigned int i = 0; i < m_numSamples; i++) 
-    {
+  {
     for (unsigned int k = 0; k < m_domainsPerShape; k++) 
-      {
+    {
       // read file
       typename itk::ParticlePositionReader<VDimension>::Pointer reader
         = itk::ParticlePositionReader<VDimension>::New();
@@ -218,7 +233,7 @@ int ParticleShapeStatistics<VDimension>
       reader->Update();
       unsigned int q = reader->GetOutput().size();  
       for (unsigned int j = 0; j < q; j++)
-        {
+      {
         m_mean(q*k*VDimension +(VDimension*j)+0) += m_pointsMinusMean(q*k*VDimension +(VDimension*j)+0, i)
           = reader->GetOutput()[j][0];
         m_mean(q*k*VDimension +(VDimension*j)+1) += m_pointsMinusMean(q*k*VDimension +(VDimension*j)+1, i)
@@ -227,63 +242,130 @@ int ParticleShapeStatistics<VDimension>
           = reader->GetOutput()[j][2];
 
         if (m_groupIDs[i] == 1)
-          {
+        {
           m_mean1(q*k*VDimension +(VDimension*j)+0) += reader->GetOutput()[j][0];
           m_mean1(q*k*VDimension +(VDimension*j)+1) += reader->GetOutput()[j][1];
           m_mean1(q*k*VDimension +(VDimension*j)+2) += reader->GetOutput()[j][2];
-          }
+	}
         else
-          {
+        {
           m_mean2(q*k*VDimension +(VDimension*j)+0) += reader->GetOutput()[j][0];
           m_mean2(q*k*VDimension +(VDimension*j)+1) += reader->GetOutput()[j][1];
           m_mean2(q*k*VDimension +(VDimension*j)+2) += reader->GetOutput()[j][2];
-          }
-        
+	}
+
         m_shapes(q*k*VDimension +(VDimension*j)+0,i) = reader->GetOutput()[j][0];
         m_shapes(q*k*VDimension +(VDimension*j)+1,i) = reader->GetOutput()[j][1];
         m_shapes(q*k*VDimension +(VDimension*j)+2,i) = reader->GetOutput()[j][2];
-                
-        }
       }
     }
+  }
 
   for (unsigned int i = 0; i < m_numDimensions; i++)
-    {
+  {
     m_mean(i)  /= (double)m_numSamples;
     m_mean1(i) /= (double)m_numSamples1;
     m_mean2(i) /= (double)m_numSamples2;
-    }
-  
+  }
+
   for (unsigned int j = 0; j < m_numDimensions; j++)
-    {
+  {
     for (unsigned int i = 0; i < m_numSamples; i++)
-      {
+    {
       m_pointsMinusMean(j, i) -= m_mean(j);
+    }
+  }
+
+  m_groupdiff = m_mean2 - m_mean1;
+
+  // if vector files are present, read them in
+  if(vectorsfiles.size() > 0)
+  {
+    // setting global trend variables
+    m_trendsMinusMean.set_size(m_numDimensions, m_numSamples);
+    m_vectors.set_size(m_numDimensions, m_numSamples);
+
+    m_trend.set_size(m_numDimensions);
+    m_trend.fill(0.0);
+
+    m_trend1.set_size(m_numDimensions);
+    m_trend1.fill(0.0);
+    m_trend2.set_size(m_numDimensions);
+    m_trend2.fill(0.0);
+  
+    // compile the meta trends if present
+    for (unsigned int i = 0; i < m_numSamples; i++) 
+    {
+      for (unsigned int k = 0; k < m_domainsPerShape; k++) 
+      {
+	// read file
+	typename itk::ParticlePositionReader<VDimension>::Pointer vecReader
+	  = itk::ParticlePositionReader<VDimension>::New();
+	vecReader->SetFileName( vectorsfiles[i*m_domainsPerShape + k].c_str() );
+	vecReader->Update();
+	unsigned int q = vecReader->GetOutput().size();  
+	for (unsigned int j = 0; j < q; j++)
+	{
+	  m_trend(q*k*VDimension +(VDimension*j)+0) += m_trendsMinusMean(q*k*VDimension +(VDimension*j)+0, i)
+	    = vecReader->GetOutput()[j][0];
+	  m_trend(q*k*VDimension +(VDimension*j)+1) += m_trendsMinusMean(q*k*VDimension +(VDimension*j)+1, i)
+	    = vecReader->GetOutput()[j][1];
+	  m_trend(q*k*VDimension +(VDimension*j)+2) += m_trendsMinusMean(q*k*VDimension +(VDimension*j)+2, i)
+	    = vecReader->GetOutput()[j][2];
+
+	  if (m_groupIDs[i] == 1)
+	  {
+	    m_trend1(q*k*VDimension +(VDimension*j)+0) += vecReader->GetOutput()[j][0];
+	    m_trend1(q*k*VDimension +(VDimension*j)+1) += vecReader->GetOutput()[j][1];
+	    m_trend1(q*k*VDimension +(VDimension*j)+2) += vecReader->GetOutput()[j][2];
+	  }
+	  else
+	  {
+	    m_trend2(q*k*VDimension +(VDimension*j)+0) += vecReader->GetOutput()[j][0];
+	    m_trend2(q*k*VDimension +(VDimension*j)+1) += vecReader->GetOutput()[j][1];
+	    m_trend2(q*k*VDimension +(VDimension*j)+2) += vecReader->GetOutput()[j][2];
+	  }
+
+	  m_vectors(q*k*VDimension +(VDimension*j)+0,i) = vecReader->GetOutput()[j][0];
+	  m_vectors(q*k*VDimension +(VDimension*j)+1,i) = vecReader->GetOutput()[j][1];
+	  m_vectors(q*k*VDimension +(VDimension*j)+2,i) = vecReader->GetOutput()[j][2];
+	}
       }
     }
 
-  m_groupdiff = m_mean2 - m_mean1;
+    for (unsigned int i = 0; i < m_numDimensions; i++)
+    {
+      m_trend(i)  /= (double)m_numSamples;
+      m_trend1(i) /= (double)m_numSamples1;
+      m_trend2(i) /= (double)m_numSamples2;
+    }
+
+    for (unsigned int j = 0; j < m_numDimensions; j++)
+    {
+      for (unsigned int i = 0; i < m_numSamples; i++)
+      {
+	m_trendsMinusMean(j, i) -= m_trend(j);
+      }
+    }
+  }
   
   return 0;
 } // end ReadPointFiles
 
-
 /** Reloads a set of point files and recomputes some statistics. */
-
 template <unsigned int VDimension>
 int ParticleShapeStatistics<VDimension>
 ::ReloadPointFiles( )
 {
-  
   m_mean.fill(0);
   m_mean1.fill(0);
   m_mean2.fill(0);
 
   // Compile the "meta shapes"
   for (unsigned int i = 0; i < m_numSamples; i++) 
-    {
+  {
     for (unsigned int k = 0; k < m_domainsPerShape; k++) 
-      {
+    {
       // read file
       typename itk::ParticlePositionReader<VDimension>::Pointer reader
         = itk::ParticlePositionReader<VDimension>::New();
@@ -291,7 +373,7 @@ int ParticleShapeStatistics<VDimension>
       reader->Update();
       unsigned int q = reader->GetOutput().size();  
       for (unsigned int j = 0; j < q; j++)
-        {
+      {
         m_mean(q*k*VDimension +(VDimension*j)+0) += m_pointsMinusMean(q*k*VDimension +(VDimension*j)+0, i)
           = reader->GetOutput()[j][0];
         m_mean(q*k*VDimension +(VDimension*j)+1) += m_pointsMinusMean(q*k*VDimension +(VDimension*j)+1, i)
@@ -300,43 +382,105 @@ int ParticleShapeStatistics<VDimension>
           = reader->GetOutput()[j][2];
 
         if (m_groupIDs[i] == 1)
-          {
+        {
           m_mean1(q*k*VDimension +(VDimension*j)+0) += reader->GetOutput()[j][0];
           m_mean1(q*k*VDimension +(VDimension*j)+1) += reader->GetOutput()[j][1];
           m_mean1(q*k*VDimension +(VDimension*j)+2) += reader->GetOutput()[j][2];
-          }
+	}
         else
-          {
+	{
           m_mean2(q*k*VDimension +(VDimension*j)+0) += reader->GetOutput()[j][0];
           m_mean2(q*k*VDimension +(VDimension*j)+1) += reader->GetOutput()[j][1];
           m_mean2(q*k*VDimension +(VDimension*j)+2) += reader->GetOutput()[j][2];
-          }
-        
+	}
+
         m_shapes(q*k*VDimension +(VDimension*j)+0,i) = reader->GetOutput()[j][0];
         m_shapes(q*k*VDimension +(VDimension*j)+1,i) = reader->GetOutput()[j][1];
         m_shapes(q*k*VDimension +(VDimension*j)+2,i) = reader->GetOutput()[j][2];
-                
-        }
       }
     }
+  }
 
   for (unsigned int i = 0; i < m_numDimensions; i++)
-    {
+  {
     m_mean(i)  /= (double)m_numSamples;
     m_mean1(i) /= (double)m_numSamples1;
     m_mean2(i) /= (double)m_numSamples2;
-    }
-  
+  }
+
   for (unsigned int j = 0; j < m_numDimensions; j++)
-    {
+  {
     for (unsigned int i = 0; i < m_numSamples; i++)
-      {
+    {
       m_pointsMinusMean(j, i) -= m_mean(j);
-      }
     }
+  }
 
   m_groupdiff = m_mean2 - m_mean1;
   
+  // *********** if vectorfiles are present *************
+  if(m_vectorsfiles.size() > 0)
+  {
+    m_trend.fill(0.0);
+    m_trend1.fill(0.0);
+    m_trend2.fill(0.0);
+
+    // Compile the "meta trends"
+    for (unsigned int i = 0; i < m_numSamples; i++) 
+    {
+      for (unsigned int k = 0; k < m_domainsPerShape; k++) 
+      {
+	// read file
+	typename itk::ParticlePositionReader<VDimension>::Pointer vecReader
+	  = itk::ParticlePositionReader<VDimension>::New();
+	vecReader->SetFileName( m_vectorsfiles[i*m_domainsPerShape + k].c_str() );
+	vecReader->Update();
+	unsigned int q = vecReader->GetOutput().size();  
+	for (unsigned int j = 0; j < q; j++)
+	{
+	  m_trend(q*k*VDimension +(VDimension*j)+0) += m_trendsMinusMean(q*k*VDimension +(VDimension*j)+0, i)
+	    = vecReader->GetOutput()[j][0];
+	  m_trend(q*k*VDimension +(VDimension*j)+1) += m_trendsMinusMean(q*k*VDimension +(VDimension*j)+1, i)
+	    = vecReader->GetOutput()[j][1];
+	  m_trend(q*k*VDimension +(VDimension*j)+2) += m_trendsMinusMean(q*k*VDimension +(VDimension*j)+2, i)
+	    = vecReader->GetOutput()[j][2];
+
+	  if (m_groupIDs[i] == 1)
+	  {
+	    m_trend1(q*k*VDimension +(VDimension*j)+0) += vecReader->GetOutput()[j][0];
+	    m_trend1(q*k*VDimension +(VDimension*j)+1) += vecReader->GetOutput()[j][1];
+	    m_trend1(q*k*VDimension +(VDimension*j)+2) += vecReader->GetOutput()[j][2];
+	  }
+	  else
+	  {
+	    m_trend2(q*k*VDimension +(VDimension*j)+0) += vecReader->GetOutput()[j][0];
+	    m_trend2(q*k*VDimension +(VDimension*j)+1) += vecReader->GetOutput()[j][1];
+	    m_trend2(q*k*VDimension +(VDimension*j)+2) += vecReader->GetOutput()[j][2];
+	  }
+
+	  m_vectors(q*k*VDimension +(VDimension*j)+0,i) = vecReader->GetOutput()[j][0];
+	  m_vectors(q*k*VDimension +(VDimension*j)+1,i) = vecReader->GetOutput()[j][1];
+	  m_vectors(q*k*VDimension +(VDimension*j)+2,i) = vecReader->GetOutput()[j][2];
+	}
+      }
+    }
+
+    for (unsigned int i = 0; i < m_numDimensions; i++)
+    {
+      m_trend(i)  /= (double)m_numSamples;
+      m_trend1(i) /= (double)m_numSamples1;
+      m_trend2(i) /= (double)m_numSamples2;
+    }
+
+    for (unsigned int j = 0; j < m_numDimensions; j++)
+    {
+      for (unsigned int i = 0; i < m_numSamples; i++)
+      {
+	m_trendsMinusMean(j, i) -= m_trend(j);
+      }
+    }
+  }
+
   return 0;
 } // end ReloadPointFiles
 

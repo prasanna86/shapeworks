@@ -472,7 +472,7 @@ QToolButton:pressed{
                <item>
                 <widget class="QPushButton" name="meanGroup1Button">
                  <property name="text">
-                  <string>Group1</string>
+                  <string>Group1 : Shape</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
@@ -494,7 +494,51 @@ QToolButton:pressed{
                <item>
                 <widget class="QPushButton" name="meanGroup2Button">
                  <property name="text">
-                  <string>Group2</string>
+                  <string>Group2 : Shape</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="checked">
+                  <bool>false</bool>
+                 </property>
+                 <property name="autoExclusive">
+                  <bool>true</bool>
+                 </property>
+                 <property name="default">
+                  <bool>false</bool>
+                 </property>
+                 <property name="flat">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="trendGroup1Button">
+                 <property name="text">
+                  <string>Group1 : Trend</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="checked">
+                  <bool>false</bool>
+                 </property>
+                 <property name="autoExclusive">
+                  <bool>true</bool>
+                 </property>
+                 <property name="default">
+                  <bool>false</bool>
+                 </property>
+                 <property name="flat">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="trendGroup2Button">
+                 <property name="text">
+                  <string>Group2 : Trend</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
@@ -516,7 +560,7 @@ QToolButton:pressed{
                <item>
                 <widget class="QPushButton" name="meanDifferenceButton">
                  <property name="text">
-                  <string>Difference</string>
+                  <string>Shape Difference</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>

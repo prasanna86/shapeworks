@@ -103,13 +103,21 @@ public:
   const vnl_vector<double> &Group2Mean() const
   { return m_mean2; }
 
+  /** Returns the mean trend. */
+  const vnl_vector<double> &Trend() const
+  { return m_trend; }
+  const vnl_vector<double> &Group1Trend() const
+  { return m_trend1; }
+  const vnl_vector<double> &Group2Trend() const
+  { return m_trend2; }
+
   // Returns group2 - group1 mean
   const vnl_vector<double> &NormalizedGroupDifference() const
   { return m_groupdiffnorm;}
   const vnl_vector<double> &GroupDifference() const
   { return m_groupdiff;}
 
- /** Returns the median shape for the set of shapes with Group ID equal to the
+  /** Returns the median shape for the set of shapes with Group ID equal to the
       integer argument.  For example, ComputeMedianShape(0) returns the median
       shape for the set of shapes with m_groupIDs == 0. The median shape is
       defined as the shape with the minimum sum of Euclidean L1 norms to all
@@ -136,6 +144,13 @@ public:
   const vnl_vector<double> &Shape(unsigned int i) const
   { return m_shapes.get_column(i); }
 
+  /** Returns the trend matrix*/ // added
+  const vnl_matrix<double> &TrendMatrix() const
+  {return m_vectors; }
+
+  const vnl_vector<double> &SingleTrend(unsigned int i) const
+  { return m_vectors.get_column(i); }
+
   /** Computes a simple linear regression of the first list of values with
       respect to the second y=a + bx. Returns the estimated parameters a & b.
        Returns 0 on success and -1 on fail.*/
@@ -157,6 +172,7 @@ protected:
   vnl_vector<double> m_mean;
   vnl_vector<double> m_mean1;
   vnl_vector<double> m_mean2;
+
   vnl_matrix<double> m_pointsMinusMean;
   vnl_matrix<double> m_shapes;
   vnl_matrix<double> m_projectedPMM1;
@@ -174,6 +190,17 @@ protected:
 
   // used to keep the points' files that needs to be reloaded when new updates come in.
   std::vector< std::string > m_pointsfiles; 
+
+  // added
+  vnl_vector<double> m_trend;
+  vnl_vector<double> m_trend1;
+  vnl_vector<double> m_trend2;
+
+  vnl_matrix<double> m_trendsMinusMean;
+  vnl_matrix<double> m_vectors;
+
+  // used to keep the vectors files that needs to be reloaded when new updates come in.
+  std::vector< std::string > m_vectorsfiles; // added
 };
 
 #if ITK_TEMPLATE_EXPLICIT

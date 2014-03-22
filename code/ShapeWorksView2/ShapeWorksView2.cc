@@ -30,6 +30,7 @@
 #include <vtkImageGradient.h>
 #include <vtkImageWriter.h>
 #include <vtkLookupTable.h>
+#include <vtkMassProperties.h>
 #include <vtkOrientationMarkerWidget.h>
 #include <vtkPLYReader.h>
 #include <vtkPointData.h>
@@ -360,6 +361,18 @@ void ShapeWorksView2::on_meanGroup1Button_clicked()
 
 //---------------------------------------------------------------------------
 void ShapeWorksView2::on_meanGroup2Button_clicked()
+{
+  this->updateAnalysisMode();
+}
+
+//---------------------------------------------------------------------------
+void ShapeWorksView2::on_trendGroup1Button_clicked()
+{
+  this->updateAnalysisMode();
+}
+
+//---------------------------------------------------------------------------
+void ShapeWorksView2::on_trendGroup2Button_clicked()
 {
   this->updateAnalysisMode();
 }
@@ -749,6 +762,10 @@ void ShapeWorksView2::updateAnalysisMode()
   // update UI
   this->ui->meanGroup1Button->setVisible( this->groupsAvailable );
   this->ui->meanGroup2Button->setVisible( this->groupsAvailable );
+  this->ui->trendGroup1Button->setVisible( this->vectorsAvailable & this->groupsAvailable );
+  this->ui->trendGroup2Button->setVisible( this->vectorsAvailable & this->groupsAvailable );
+  this->ui->meanDifferenceButton->setVisible( this->groupsAvailable );
+
   this->ui->medianGroup1Button->setVisible( this->groupsAvailable );
   this->ui->medianGroup2Button->setVisible( this->groupsAvailable );
   this->ui->pcaGroup1Label->setVisible( this->groupsAvailable );
@@ -785,6 +802,16 @@ void ShapeWorksView2::updateAnalysisMode()
     else if ( this->ui->meanGroup2Button->isChecked() )
     {
       this->displayShape( this->stats.Group2Mean() );
+    }
+    else if ( this->ui->trendGroup1Button->isChecked() )
+    {
+      this->displayShape( this->stats.Group1Mean() );
+      this->displayGroup1Trend();
+    }
+    else if ( this->ui->trendGroup2Button->isChecked() )
+    {
+      this->displayShape( this->stats.Group2Mean() );
+      this->displayGroup2Trend();
     }
     else if ( this->ui->meanDifferenceButton->isChecked() )
     {
@@ -971,6 +998,7 @@ bool ShapeWorksView2::readParameterFile( char* filename )
   std::istringstream inputsBuffer;
 
   this->groupsAvailable = ( docHandle.FirstChild( "group_ids" ).Element() != NULL );
+  this->vectorsAvailable = ( docHandle.FirstChild( "vectors" ).Element() != NULL );
 
   // number of domains (objects) per patient/shape
   this->numDomains = 1;
@@ -1315,9 +1343,9 @@ void ShapeWorksView2::computeSurfaceDifferences( vtkSmartPointer<vtkFloatArray> 
       {
         vtkIdType currID = closestPoints->GetId( p );
         weightedScalar += distance[p] / distanceSum * magnitudes->GetValue( currID );
-        vecX += distance[p] / distanceSum * vectors->GetComponent( currID, 0 );
-        vecY += distance[p] / distanceSum * vectors->GetComponent( currID, 1 );
-        vecZ += distance[p] / distanceSum * vectors->GetComponent( currID, 2 );
+        vecX += (distance[p] / distanceSum) * vectors->GetComponent( currID, 0 );
+        vecY += (distance[p] / distanceSum) * vectors->GetComponent( currID, 1 );
+        vecZ += (distance[p] / distanceSum) * vectors->GetComponent( currID, 2 );
       }
 
       surfaceMagnitudes->SetValue( i, weightedScalar );
@@ -1331,6 +1359,38 @@ void ShapeWorksView2::computeSurfaceDifferences( vtkSmartPointer<vtkFloatArray> 
     polyData->GetPointData()->SetScalars( surfaceMagnitudes );
     polyData->GetPointData()->SetVectors( surfaceVectors );
   }
+}
+
+//------------- Group 1 trend added --------------------------------------
+void ShapeWorksView2::displayGroup1Trend()
+{
+  std::vector< itk::ParticlePositionReader<3>::PointType > vecs;
+
+  for ( unsigned int i = 0; i < this->glyphPoints->GetNumberOfPoints(); i++ )
+  {
+    itk::ParticlePositionReader<3>::PointType tmp;
+    tmp[0] = this->stats.Group1Trend()[i * 3];
+    tmp[1] = this->stats.Group1Trend()[i * 3 + 1];
+    tmp[2] = this->stats.Group1Trend()[i * 3 + 2];
+    vecs.push_back( tmp );
+  }
+  this->displayVectorField( vecs );
+}
+
+//------------- Group 2 trend added --------------------------------------
+void ShapeWorksView2::displayGroup2Trend()
+{
+  std::vector< itk::ParticlePositionReader<3>::PointType > vecs;
+
+  for ( unsigned int i = 0; i < this->glyphPoints->GetNumberOfPoints(); i++ )
+  {
+    itk::ParticlePositionReader<3>::PointType tmp;
+    tmp[0] = this->stats.Group2Trend()[i * 3];
+    tmp[1] = this->stats.Group2Trend()[i * 3 + 1];
+    tmp[2] = this->stats.Group2Trend()[i * 3 + 2];
+    vecs.push_back( tmp );
+  }
+  this->displayVectorField( vecs );
 }
 
 //---------------------------------------------------------------------------

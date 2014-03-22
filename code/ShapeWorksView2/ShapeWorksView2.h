@@ -72,6 +72,8 @@ public Q_SLOTS:
   void on_meanOverallButton_clicked();
   void on_meanGroup1Button_clicked();
   void on_meanGroup2Button_clicked();
+  void on_trendGroup1Button_clicked();
+  void on_trendGroup2Button_clicked();
   void on_meanDifferenceButton_clicked();
 
   // sample mode
@@ -133,6 +135,8 @@ private:
                                   vtkSmartPointer<vtkFloatArray> vectors );
 
   void displayMeanDifference();
+  void displayGroup1Trend();
+  void displayGroup2Trend();
   void displaySpheres();
   void resetPointScalars();
 
@@ -190,6 +194,7 @@ private:
   int pointsPerDomain;
 
   bool groupsAvailable;
+  bool vectorsAvailable;
   bool regressionAvailable;
 
   double regressionMin;
