@@ -550,6 +550,7 @@ namespace itk
    vnl_matrix<double> m_SlopeRand; //added: AK , random slopes for each group
 
    int m_NumIndividuals;
+   int m_NumFixedParams;
    // timepoints per individual
    vnl_vector<int> m_TimeptsPerIndividual;
  };
