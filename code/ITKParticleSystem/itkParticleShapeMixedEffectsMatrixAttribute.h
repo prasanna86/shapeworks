@@ -613,7 +613,7 @@ namespace itk
      int num_shapes = static_cast<double>(X.cols());
      int nr = X.rows(); //number of points*3
      std::cout << "num individuals: " << this->m_NumIndividuals << std::endl;
-     std::cout << "num fixed effects: " << this->m_NumFixedParams << std::endl;
+     std::cout << "num fixed effects params: " << this->m_NumFixedParams << std::endl;
 
      // set the sizes of random slope and intercept matrix
      m_SlopeRand.set_size(m_NumIndividuals, nr); // num_groups X num_points*3
