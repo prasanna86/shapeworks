@@ -240,6 +240,17 @@ namespace itk
      return this->m_NumIndividuals;
    }
 
+   // next stage new
+   void SetNumFixedParams(int i)
+   { 
+     this->m_NumFixedParams = i;
+   }
+
+   int &GetNumFixedParams()
+   {
+     return this->m_NumFixedParams;
+   }
+
    void SetExplanatory(std::vector<double> v)
    {
      //    std::cout << "Setting expl " << std::endl;
@@ -507,7 +518,291 @@ namespace itk
      return m_RegressionInterval;
    }
 
-  protected:
+   // ************* Covariate model ******************//
+   void UpdateCovariateModelMeanMatrix()
+   {
+     // NOT IMPLEMENTED!!! 
+     vnl_vector<double> tempvect;
+     int indexSum = 0, group_indx = -1;
+     tempvect.set_size(m_MeanMatrix.rows());
+     tempvect.fill(0.0);
+     for (int i = 0; i < m_MeanMatrix.cols(); i++)
+     {
+       if(i == indexSum)
+       {
+	 group_indx = group_indx + 1;
+	 indexSum += m_TimeptsPerIndividual(group_indx);
+       }
+
+       // Need to add the appropriate factors
+       tempvect = m_Intercepts.get_row(0) + m_Slopes.get_row(0) * m_Expl(i);
+       tempvect = tempvect + m_InterceptRand.get_row(group_indx);
+       tempvect = tempvect + m_SlopeRand.get_row(group_indx) * m_Expl(i);
+       // compute the mean
+       m_MeanMatrix.set_column(i, tempvect);
+     }
+   }
+
+   inline vnl_vector<double> ComputeCovariateModelMean(double k) const
+   {
+     // Need to add appropriate factors: NOT IMPLEMENTED
+     return m_Intercepts.get_row(0) + m_Slopes.get_row(0) * k;    
+   }
+
+   void SetDesignMatrix(vnl_matrix<double> &v)
+   {
+     //    std::cout << "Setting design " << std::endl;
+     (this->m_FixedEffectsDesignMatrix).set_size(v.rows(), v.cols());
+     for (int i = 0; i < v.rows(); i++)
+     {
+       for (int j = 0; j < v.cols(); j++)
+       {
+	 (this->m_FixedEffectsDesignMatrix)(i, j) = v(i, j);
+       }
+     }
+   }
+
+   vnl_matrix<double> &GetDesignMatrix() const
+   {
+     return this->m_FixedEffectsDesignMatrix;
+   }
+
+   vnl_matrix<double> &GetDesignMatrix()
+   {
+     return this->m_FixedEffectsDesignMatrix;
+   }
+
+   const vnl_matrix<double> &GetSlopes() const
+   { 
+     return m_Slopes; 
+   }
+
+   const vnl_matrix<double> &GetIntercepts() const
+   { 
+     return m_Intercepts; 
+   }
+
+   // void SetSlopes(const vnl_matrix<double> &v)
+   // {
+   //   ResizeParameters(v.size());
+   //   for (unsigned int i = 0; i < v.size(); i++)
+   //   {
+   // 	m_Slope[i] = v[i];
+   //   }    
+   // }
+   
+   // void SetIntercept(const std::vector<double> &v)
+   // {
+   //   ResizeParameters(v.size());
+   //   for (unsigned int i = 0; i < v.size(); i++)
+   //   {
+   // 	m_Intercept[i] = v[i];
+   //   }
+   // }
+
+   // Estimating mixed-effects parameters for a covariate model (needs to be tested)
+   void EstimateCovariateModelParameters()
+   {
+     std::cout << "Estimating params" << std::endl;
+     //std::cout << "Explanatory: " << m_Expl << std::endl;
+
+     vnl_matrix<double> X = *this + m_MeanMatrix;
+     vnl_matrix<double> fD = m_FixedEffectsDesignMatrix;
+
+     // Number of samples
+     int num_shapes = static_cast<double>(X.cols());
+     int nr = X.rows(); //number of points*3
+     std::cout << "num individuals: " << this->m_NumIndividuals << std::endl;
+     std::cout << "num fixed effects: " << this->m_NumFixedParams << std::endl;
+
+     // set the sizes of random slope and intercept matrix
+     m_SlopeRand.set_size(m_NumIndividuals, nr); // num_groups X num_points*3
+     m_InterceptRand.set_size(m_NumIndividuals, nr); // num_groups X num_points*3
+
+     vnl_matrix<double> fixed; // slopes + intercepts for all points
+     vnl_matrix<double> random; // slopes + intercepts for all groups, for all points
+     fixed.set_size(m_NumFixedParams, nr);
+     random.set_size(2, nr * m_NumIndividuals);
+
+     vnl_matrix<double> Ds(2, 2); // covariance matrix of random parameters (2x2)
+     Ds.set_identity();  // initialize to identity
+     vnl_matrix<double> identity_2;
+     identity_2.set_size(2, 2);
+     identity_2.set_identity();
+
+     double sigma2s = 1;  // variance of error
+     vnl_matrix<double> * Ws = NULL, * Vs = NULL, * identity_n = NULL;
+     vnl_matrix<double> * Xp = NULL, * Zp = NULL;
+     Ws = new vnl_matrix<double>[m_NumIndividuals];
+     Vs = new vnl_matrix<double>[m_NumIndividuals];
+     identity_n = new vnl_matrix<double>[m_NumIndividuals];
+     Xp = new vnl_matrix<double>[m_NumIndividuals];
+     Zp = new vnl_matrix<double>[m_NumIndividuals];
+
+     vnl_vector<double> residual, y;
+     y.set_size(m_TimeptsPerIndividual(0));
+     y.fill(0.0);
+     residual.set_size(m_TimeptsPerIndividual(0));
+     residual.fill(0.0);
+
+     for (int i = 0; i < m_NumIndividuals; i++)
+     {
+       Vs[i].set_size(m_TimeptsPerIndividual(i), m_TimeptsPerIndividual(i)); 
+       Ws[i].set_size(m_TimeptsPerIndividual(i), m_TimeptsPerIndividual(i));
+
+       identity_n[i].set_size(m_TimeptsPerIndividual(i), m_TimeptsPerIndividual(i));
+       identity_n[i].set_identity();
+
+       Xp[i].set_size(m_TimeptsPerIndividual(i), m_NumFixedParams);
+       Zp[i].set_size(m_TimeptsPerIndividual(i), 2);
+     }
+
+     vnl_matrix<double> sum_mat1(m_NumFixedParams, m_NumFixedParams, 0);
+     vnl_vector<double> sum_mat2(m_NumFixedParams); sum_mat2.fill(0.0);
+     double ecorr = 0.0;
+     double tracevar = 0.0;
+     vnl_matrix<double> bscorr(2, 2, 0.0); 
+     vnl_matrix<double> bsvar(2, 2, 0.0);
+     vnl_vector<double> tempvect; tempvect.set_size(m_NumFixedParams);
+     unsigned int indexSum = 0;
+      
+     //std::cout << "all good here? [1] " << std::endl;
+     
+     for (int i = 0; i < nr; i++) //for all points (x,y,z coordinates)
+     {
+       sigma2s = 0.01;
+       Ds.set_identity();
+       Ds *= sigma2s;
+       //std::cout << "all good here? [2] " << std::endl;
+       for (int j = 0; j < 50; j++) //EM iterations
+       {
+	 sum_mat1.fill(0.0); sum_mat2.fill(0.0);
+	 indexSum = 0;
+	 
+	 //std::cout << "all good here? [3] " << std::endl;	  
+	 for (int k = 0; k < m_NumIndividuals; k++)
+    	 {
+	   y.clear();
+	   y.set_size(m_TimeptsPerIndividual(k));
+	   y.fill(0.0);
+	   
+	   //std::cout << "all good here? [4] " << k << std::endl;	  
+	   for (int l = 0; l < m_TimeptsPerIndividual(k); l++)
+    	   {
+	     Xp[k](l, 0) = 1;
+	     Zp[k](l, 0) = 1;
+
+	     for(int m = 1; m < m_NumFixedParams; m++)
+	     {
+	       Xp[k](l, m) = fD(indexSum + l, m);
+	     }
+
+	     Zp[k](l, 1) = m_Expl(indexSum + l);
+	     y(l) = X(i, indexSum + l);
+	   }
+
+	   indexSum += m_TimeptsPerIndividual(k);
+
+	   Vs[k] = (identity_n[k] * sigma2s) + Zp[k] * Ds * vnl_transpose(Zp[k]);
+	   Ws[k] = vnl_inverse(Vs[k]);
+	   sum_mat1 = sum_mat1 + vnl_transpose(Xp[k]) * Ws[k] * Xp[k];
+	   sum_mat2 = sum_mat2 + vnl_transpose(Xp[k]) * Ws[k] * y;
+	 }
+
+	 tempvect = vnl_inverse(sum_mat1) * sum_mat2;
+	 fixed.set_column(i, tempvect);
+	 
+	 indexSum = 0; // re-initializing
+	 ecorr = 0.0; 
+	 tracevar = 0.0;
+	 bscorr.fill(0.0);
+	 bsvar.fill(0.0);
+
+	 for (int k = 0; k < m_NumIndividuals; k++)
+	 {
+	   residual.clear(); y.clear();
+	   residual.set_size(m_TimeptsPerIndividual(k));
+	   y.set_size(m_TimeptsPerIndividual(k));
+	   residual.fill(0.0); y.fill(0.0);
+
+	   for (int l = 0; l < m_TimeptsPerIndividual[k]; l++)
+	   {
+	     Xp[k](l, 0) = 1;
+	     Zp[k](l, 0) = 1;
+	     
+	     for(int m = 1; m < m_NumFixedParams; m++)
+	     {
+	       Xp[k](l, m) = fD(indexSum + l, m);
+	     }
+
+	     Zp[k](l, 1) = m_Expl(indexSum + l);
+	     y(l) = X(i, indexSum + l);
+	   }
+
+	   indexSum += m_TimeptsPerIndividual(k);
+
+	   tempvect = Ds * vnl_transpose(Zp[k]) * Ws[k] * (y - (Xp[k] * fixed.get_column(i)));
+	   random.set_column(i * m_NumIndividuals + k, tempvect);
+	   residual = y - (Xp[k] * fixed.get_column(i)) - (Zp[k] * random.get_column(i * m_NumIndividuals + k));
+	   ecorr = ecorr + dot_product(residual, residual);
+	   tracevar = tracevar + (m_TimeptsPerIndividual(k) - sigma2s * vnl_trace(Ws[k]));
+	   bscorr = bscorr + outer_product(random.get_column(i * m_NumIndividuals + k), random.get_column(i * m_NumIndividuals + k));
+	   bsvar = bsvar + (identity_2 - (vnl_transpose(Xp[k]) * Ws[k] * Zp[k] * Ds));
+	 }
+
+	 indexSum = 0; // re-initializing
+	 sigma2s = (ecorr + sigma2s * tracevar) / (num_shapes);
+	 Ds = (bscorr + Ds * bsvar) / m_NumIndividuals;
+       } //end for EM iterations
+     } // end for all points on shape (x,y & z)
+
+     for(int i = 0; i < m_NumFixedParams / 2; i++)
+     {
+       m_Intercepts.set_row(i, fixed.get_row(i));
+       m_Slopes.set_row(i, fixed.get_row(i + (m_NumFixedParams / 2)));
+     }
+
+     for (int i = 0; i < m_NumIndividuals; i++)
+     {
+       for (int j = 0; j < nr; j++) //for all points * 3
+       {
+	 m_InterceptRand(i, j) = random(0, j * m_NumIndividuals + i);
+	 m_SlopeRand(i, j) = random(1, j * m_NumIndividuals + i);
+       }
+     }
+
+     delete [] Vs;
+     delete [] Ws;
+     delete [] identity_n;
+     delete [] Xp;
+     delete [] Zp;
+   }
+
+   void InitializeCovariateModel()
+   {
+     m_Intercepts.fill(0.0);
+     m_Slopes.fill(0.0);
+     
+     m_MeanMatrix.fill(0.0);
+     m_FixedEffectsDesignMatrix.fill(0.0);
+     
+     m_SlopeRand.fill(0.0);
+     m_InterceptRand.fill(0.0);    
+   }
+
+   virtual void BeforeIterationCovariateModel()
+   {
+     m_UpdateCounter ++;
+     if (m_UpdateCounter >= m_RegressionInterval)
+     {
+       m_UpdateCounter = 0;
+       this->EstimateCovariateModelParameters();
+       this->UpdateCovariateModelMeanMatrix();
+     }
+   }
+
+   // ****************************************************** //
+ protected:
    ParticleShapeMixedEffectsMatrixAttribute() 
    {
      this->m_DefinedCallbacks.DomainAddEvent = true;
@@ -516,7 +811,8 @@ namespace itk
      this->m_DefinedCallbacks.PositionRemoveEvent = true;
      m_UpdateCounter = 0;
      m_RegressionInterval = 1;
-     m_NumIndividuals = 84;
+     m_NumIndividuals = 1;
+     m_NumFixedParams = 2;
      m_TimeptsPerIndividual.set_size(m_NumIndividuals);
      for(int i = 0; i < m_NumIndividuals; i++)
        m_TimeptsPerIndividual(i) = 3;
@@ -543,6 +839,9 @@ namespace itk
    // The explanatory variable value for each sample (matrix column)
    vnl_vector<double> m_Expl;
 
+   // A design matrix to store the explanatory variables: Need to absorb this into m_Expl
+    vnl_matrix<double> m_FixedEffectsDesignMatrix;
+
    // A matrix to store the mean estimated for each explanatory variable (each sample)
    vnl_matrix<double> m_MeanMatrix;
 
@@ -550,6 +849,7 @@ namespace itk
    vnl_matrix<double> m_SlopeRand; //added: AK , random slopes for each group
 
    int m_NumIndividuals;
+   int m_NumFixedParams;
    // timepoints per individual
    vnl_vector<int> m_TimeptsPerIndividual;
  };
