@@ -34,10 +34,34 @@ namespace itk
    /** Run-time type information (and related methods). */
    itkTypeMacro(ParticleShapeMixedEffectsMatrixAttribute, ParticleShapeMatrixAttribute);
 
-   void UpdateMeanMatrix()
+   // void UpdateMeanMatrix()
+   // {
+   //   // for each sample
+   //   vnl_vector<double> tempvect;
+   //   int indexSum = 0, group_indx = -1;
+   //   tempvect.set_size(m_MeanMatrix.rows());
+   //   tempvect.fill(0.0);
+   //   for (int i = 0; i < m_MeanMatrix.cols(); i++)
+   //   {
+   //     if(i == indexSum)
+   //     {
+   // 	 group_indx = group_indx + 1;
+   // 	 indexSum += m_TimeptsPerIndividual(group_indx);
+   //     }
+
+   //     tempvect = m_Intercept + m_Slope * m_Expl(i);
+   //     tempvect = tempvect + m_InterceptRand.get_row(group_indx);
+   //     tempvect = tempvect + m_SlopeRand.get_row(group_indx) * m_Expl(i);
+   //     // compute the mean
+   //     m_MeanMatrix.set_column(i, tempvect);
+   //   }
+   // }
+
+   // ************* Covariate model ******************//
+   void UpdateCovariateModelMeanMatrix()
    {
-     // for each sample
      vnl_vector<double> tempvect;
+     vnl_matrix<double> D = m_FixedEffectsDesignMatrix;
      int indexSum = 0, group_indx = -1;
      tempvect.set_size(m_MeanMatrix.rows());
      tempvect.fill(0.0);
@@ -49,18 +73,30 @@ namespace itk
 	 indexSum += m_TimeptsPerIndividual(group_indx);
        }
 
-       tempvect = m_Intercept + m_Slope * m_Expl(i);
-       tempvect = tempvect + m_InterceptRand.get_row(group_indx);
-       tempvect = tempvect + m_SlopeRand.get_row(group_indx) * m_Expl(i);
+       // Adding the appropriate factors
+       for(int j = 0; j < m_numFixedParams / 2; j++)
+	 tempvect += m_Intercepts.get_row(j) + m_Slopes.get_row(j) * D(i, j);
+       tempvect += m_InterceptRand.get_row(group_indx);
+       tempvect += m_SlopeRand.get_row(group_indx) * m_Expl(i);
        // compute the mean
        m_MeanMatrix.set_column(i, tempvect);
      }
    }
+  
+   // ****************************************************** //
 
-   inline vnl_vector<double> ComputeMean(double k) const
+   // inline vnl_vector<double> ComputeMean(double k) const
+   // {
+   //   return m_Intercept + m_Slope * k;    
+   // }
+
+   // Covariate model version
+   inline vnl_vector<double> ComputeCovariateModelMean(double k) const
    {
-     return m_Intercept + m_Slope * k;    
+     //vnl_vector<double> tempvect;
+     return m_Intercepts.get_row(0) + m_Slopes.get_row(0) * k;    
    }
+
 
    void ResizeParameters(unsigned int n)
    {
@@ -315,6 +351,59 @@ namespace itk
      }
    }
 
+   // covariate model versions
+   void SetDesignMatrix(vnl_matrix<double> &v)
+   {
+     //    std::cout << "Setting design " << std::endl;
+     (this->m_FixedEffectsDesignMatrix).set_size(v.rows(), v.cols());
+     for (int i = 0; i < v.rows(); i++)
+     {
+       for (int j = 0; j < v.cols(); j++)
+       {
+	 (this->m_FixedEffectsDesignMatrix)(i, j) = v(i, j);
+       }
+     }
+   }
+
+   vnl_matrix<double> &GetDesignMatrix() const
+   {
+     return this->m_FixedEffectsDesignMatrix;
+   }
+
+   vnl_matrix<double> &GetDesignMatrix()
+   {
+     return this->m_FixedEffectsDesignMatrix;
+   }
+
+   const vnl_matrix<double> &GetSlopes() const
+   { 
+     return m_Slopes; 
+   }
+
+   const vnl_matrix<double> &GetIntercepts() const
+   { 
+     return m_Intercepts; 
+   }
+
+   // void SetSlopes(const vnl_matrix<double> &v)
+   // {
+   //   ResizeParameters(v.size());
+   //   for (unsigned int i = 0; i < v.size(); i++)
+   //   {
+   // 	m_Slope[i] = v[i];
+   //   }    
+   // }
+   
+   // void SetIntercept(const std::vector<double> &v)
+   // {
+   //   ResizeParameters(v.size());
+   //   for (unsigned int i = 0; i < v.size(); i++)
+   //   {
+   // 	m_Intercept[i] = v[i];
+   //   }
+   // }
+
+   /*
    void EstimateParameters()
    {
      std::cout << "Estimating params" << std::endl;
@@ -485,120 +574,7 @@ namespace itk
      // printf ("fixed: slope %g, intercept %g", m_Slope(0), m_Intercept(0));
      // printf ("random: slopes %g %g, intercepts %g %g", m_SlopeRand(0,0), m_SlopeRand(1,0), m_InterceptRand(0,0), m_InterceptRand(1,0));
    }
-
-   // Initialize variables 
-   void Initialize()
-   {
-     m_Intercept.fill(0.0);
-     m_Slope.fill(0.0);
-     m_MeanMatrix.fill(0.0);
-
-     m_SlopeRand.fill(0.0);
-     m_InterceptRand.fill(0.0);    
-   }
-
-   virtual void BeforeIteration()
-   {
-     m_UpdateCounter ++;
-     if (m_UpdateCounter >= m_RegressionInterval)
-     {
-       m_UpdateCounter = 0;
-       this->EstimateParameters();
-       this->UpdateMeanMatrix();
-     }
-   }
-
-   void SetRegressionInterval( int i)
-   {
-     m_RegressionInterval = i;
-   }
-
-   int GetRegressionInterval() const
-   {
-     return m_RegressionInterval;
-   }
-
-   // ************* Covariate model ******************//
-   void UpdateCovariateModelMeanMatrix()
-   {
-     // NOT IMPLEMENTED!!! 
-     vnl_vector<double> tempvect;
-     int indexSum = 0, group_indx = -1;
-     tempvect.set_size(m_MeanMatrix.rows());
-     tempvect.fill(0.0);
-     for (int i = 0; i < m_MeanMatrix.cols(); i++)
-     {
-       if(i == indexSum)
-       {
-	 group_indx = group_indx + 1;
-	 indexSum += m_TimeptsPerIndividual(group_indx);
-       }
-
-       // Need to add the appropriate factors
-       tempvect = m_Intercepts.get_row(0) + m_Slopes.get_row(0) * m_Expl(i);
-       tempvect = tempvect + m_InterceptRand.get_row(group_indx);
-       tempvect = tempvect + m_SlopeRand.get_row(group_indx) * m_Expl(i);
-       // compute the mean
-       m_MeanMatrix.set_column(i, tempvect);
-     }
-   }
-
-   inline vnl_vector<double> ComputeCovariateModelMean(double k) const
-   {
-     // Need to add appropriate factors: NOT IMPLEMENTED
-     return m_Intercepts.get_row(0) + m_Slopes.get_row(0) * k;    
-   }
-
-   void SetDesignMatrix(vnl_matrix<double> &v)
-   {
-     //    std::cout << "Setting design " << std::endl;
-     (this->m_FixedEffectsDesignMatrix).set_size(v.rows(), v.cols());
-     for (int i = 0; i < v.rows(); i++)
-     {
-       for (int j = 0; j < v.cols(); j++)
-       {
-	 (this->m_FixedEffectsDesignMatrix)(i, j) = v(i, j);
-       }
-     }
-   }
-
-   vnl_matrix<double> &GetDesignMatrix() const
-   {
-     return this->m_FixedEffectsDesignMatrix;
-   }
-
-   vnl_matrix<double> &GetDesignMatrix()
-   {
-     return this->m_FixedEffectsDesignMatrix;
-   }
-
-   const vnl_matrix<double> &GetSlopes() const
-   { 
-     return m_Slopes; 
-   }
-
-   const vnl_matrix<double> &GetIntercepts() const
-   { 
-     return m_Intercepts; 
-   }
-
-   // void SetSlopes(const vnl_matrix<double> &v)
-   // {
-   //   ResizeParameters(v.size());
-   //   for (unsigned int i = 0; i < v.size(); i++)
-   //   {
-   // 	m_Slope[i] = v[i];
-   //   }    
-   // }
-   
-   // void SetIntercept(const std::vector<double> &v)
-   // {
-   //   ResizeParameters(v.size());
-   //   for (unsigned int i = 0; i < v.size(); i++)
-   //   {
-   // 	m_Intercept[i] = v[i];
-   //   }
-   // }
+   */
 
    // Estimating mixed-effects parameters for a covariate model (needs to be tested)
    void EstimateCovariateModelParameters()
@@ -777,7 +753,30 @@ namespace itk
      delete [] Xp;
      delete [] Zp;
    }
+   /*
+   // Initialize variables 
+   void Initialize()
+   {
+     m_Intercept.fill(0.0);
+     m_Slope.fill(0.0);
+     m_MeanMatrix.fill(0.0);
 
+     m_SlopeRand.fill(0.0);
+     m_InterceptRand.fill(0.0);    
+   }
+
+   virtual void BeforeIteration()
+   {
+     m_UpdateCounter ++;
+     if (m_UpdateCounter >= m_RegressionInterval)
+     {
+       m_UpdateCounter = 0;
+       this->EstimateParameters();
+       this->UpdateMeanMatrix();
+     }
+   }
+   */
+   // Covariate model version
    void InitializeCovariateModel()
    {
      m_Intercepts.fill(0.0);
@@ -789,7 +788,7 @@ namespace itk
      m_SlopeRand.fill(0.0);
      m_InterceptRand.fill(0.0);    
    }
-
+   // Covariate model version
    virtual void BeforeIterationCovariateModel()
    {
      m_UpdateCounter ++;
@@ -801,7 +800,16 @@ namespace itk
      }
    }
 
-   // ****************************************************** //
+   void SetRegressionInterval( int i)
+   {
+     m_RegressionInterval = i;
+   }
+
+   int GetRegressionInterval() const
+   {
+     return m_RegressionInterval;
+   }
+   
  protected:
    ParticleShapeMixedEffectsMatrixAttribute() 
    {
