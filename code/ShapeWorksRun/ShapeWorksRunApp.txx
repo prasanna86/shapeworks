@@ -92,8 +92,9 @@ ShapeWorksRunApp<SAMPLERTYPE>::ShapeWorksRunApp(const char *fn)
   this->SetIterationCommand();
   this->InitializeSampler();
   this->ReadExplanatoryVariables(fn);
+  this->ReadDesignMatrix(fn); // added
   this->FlagDomainFct(fn);
-  
+
   // Now read the transform file if present.
   if ( m_transform_file != "" )       this->ReadTransformFile();
   if ( m_prefix_transform_file != "") this->ReadPrefixTransformFile(m_prefix_transform_file);
@@ -751,6 +752,15 @@ ShapeWorksRunApp<SAMPLERTYPE>::SetUserParameters(const char *fname)
       j++;
     }
 
+    this->m_num_fixed_params = 0;
+    if(this->m_use_mixed_effects == true)
+    {
+      // number of fixed effects parameters
+      this->m_num_fixed_params = 2;
+      elem = docHandle.FirstChild( "num_fixed_params" ).Element();
+      if (elem) this->m_num_fixed_params = atoi(elem->GetText());
+    }
+
     this->m_starting_regularization = 500.0;
     elem = docHandle.FirstChild( "starting_regularization" ).Element();
     if (elem) this->m_starting_regularization = atof(elem->GetText());
@@ -852,6 +862,10 @@ ShapeWorksRunApp<SAMPLERTYPE>::SetUserParameters(const char *fname)
 
   std::cout << "m_num_subjects = " << m_num_subjects << std::endl;
   std::cout << "m_timepts_per_subject = " << m_timepts_per_subject << std::endl;
+  std::cout << "m_use_mixed_effects = " << m_use_mixed_effects << std::endl;
+  if(m_use_mixed_effects == true)
+    std::cout << "m_num_fixed_effects = " << m_num_fixed_effects << std::endl;
+
   std::cout << "m_starting_regularization = " << m_starting_regularization << std::endl;
   std::cout << "m_ending_regularization = " << m_ending_regularization << std::endl;
   std::cout << "m_iterations_per_split = " << m_iterations_per_split << std::endl;
@@ -1140,6 +1154,63 @@ ShapeWorksRunApp<SAMPLERTYPE>::ReadExplanatoryVariables(const char *fname)
       m_use_regression = true;
     }
   } 
+}
+
+template < class SAMPLERTYPE >
+void
+ShapeWorksRunApp<SAMPLERTYPE>::ReadDesignMatrix(const char *fname)
+{
+  TiXmlDocument doc(fname);
+  bool loadOkay = doc.LoadFile();
+
+  unsigned int indexSum = 0;
+  for(int i = 0; i < m_num_subjects; i++)
+    indexSum += m_timepts_per_subject(i);
+
+  std::cout << "In Read function: " << std::endl;
+  std::cout << "num subjects = " << m_num_subjects << std::endl;
+  std::cout << "num fixed effects = " << m_num_fixed_params << std::endl;
+
+  if (loadOkay)
+  {
+    TiXmlHandle docHandle( &doc );
+    TiXmlElement *elem;
+
+    std::istringstream inputsBuffer;
+
+    // load design matrix
+    std::string filename;
+    std::ifstream designFile;
+    vnl_matrix<double> designMatrix(indexSum, m_num_fixed_params, 0.0);
+
+    double val;
+
+    elem = docHandle.FirstChild( "design_matrix" ).Element();
+    if (elem)
+    {
+      inputsBuffer.str(elem->GetText());
+      inputsBuffer >> filename; 
+
+      inputsBuffer.clear();
+      inputsBuffer.str("");
+
+      designFile.open(filename.c_str());
+
+      while (designFile >> val)
+      {
+	for(int i = 0; i < indexSum; i++)
+	{
+	  for(int j = 0; j < m_num_fixed_params; j++)
+	  {
+	    designMatrix(i, j) = val;
+	  }
+	}
+      }
+
+      dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
+        (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->SetDesignMatrix(designMatrix);
+    }
+  }
 }
 
 

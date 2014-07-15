@@ -214,7 +214,7 @@ namespace itk
      const int d = event.GetDomainIndex();
      const unsigned int idx = event.GetPositionIndex();
      const typename itk::ParticleSystem<VDimension>::PointType pos = ps->GetTransformedPosition(idx, d);
-     const unsigned int PointsPerDomain = ps ->GetNumberOfParticles(d);
+     const unsigned int PointsPerDomain = ps->GetNumberOfParticles(d);
 
      // Modify matrix info
      //    unsigned int k = VDimension * idx;
@@ -840,9 +840,13 @@ namespace itk
    int m_UpdateCounter;
    int m_RegressionInterval;
 
-   // Parameters for the linear model
+   // Parameters for the linear model (I could just make these matrices!)
    vnl_vector<double> m_Intercept;
    vnl_vector<double> m_Slope;
+
+   // I could make the above matrices, but till then:
+    vnl_matrix<double> m_Intercepts;
+    vnl_matrix<double> m_Slopes;
 
    // The explanatory variable value for each sample (matrix column)
    vnl_vector<double> m_Expl;
