@@ -864,7 +864,7 @@ ShapeWorksRunApp<SAMPLERTYPE>::SetUserParameters(const char *fname)
   std::cout << "m_timepts_per_subject = " << m_timepts_per_subject << std::endl;
   std::cout << "m_use_mixed_effects = " << m_use_mixed_effects << std::endl;
   if(m_use_mixed_effects == true)
-    std::cout << "m_num_fixed_effects = " << m_num_fixed_effects << std::endl;
+    std::cout << "m_num_fixed_params = " << m_num_fixed_params << std::endl;
 
   std::cout << "m_starting_regularization = " << m_starting_regularization << std::endl;
   std::cout << "m_ending_regularization = " << m_ending_regularization << std::endl;
@@ -1256,7 +1256,10 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
   if (m_use_mixed_effects == true)
   {
     vnl_vector<double> slopevec = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
-        (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetSlope();
+      (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetSlope();
+
+    // vnl_matrix<double> slopevec = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
+    //     (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetSlope();
 
     for (unsigned int i = 0; i < slopevec.size(); i++)
     {

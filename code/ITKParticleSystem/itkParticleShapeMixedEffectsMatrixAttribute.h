@@ -58,7 +58,7 @@ namespace itk
    // }
 
    // ************* Covariate model ******************//
-   void UpdateCovariateModelMeanMatrix()
+   void UpdateMeanMatrix()
    {
      vnl_vector<double> tempvect;
      vnl_matrix<double> D = m_FixedEffectsDesignMatrix;
@@ -74,7 +74,7 @@ namespace itk
        }
 
        // Adding the appropriate factors
-       for(int j = 0; j < m_numFixedParams / 2; j++)
+       for(int j = 0; j < m_NumFixedParams / 2; j++)
 	 tempvect += m_Intercepts.get_row(j) + m_Slopes.get_row(j) * D(i, j);
        tempvect += m_InterceptRand.get_row(group_indx);
        tempvect += m_SlopeRand.get_row(group_indx) * m_Expl(i);
@@ -91,27 +91,43 @@ namespace itk
    // }
 
    // Covariate model version
-   inline vnl_vector<double> ComputeCovariateModelMean(double k) const
+   inline vnl_vector<double> ComputeMean(double k) const
    {
      //vnl_vector<double> tempvect;
      return m_Intercepts.get_row(0) + m_Slopes.get_row(0) * k;    
    }
 
+   // void ResizeParameters(unsigned int n)
+   // {
+   //   vnl_vector<double> tmpA = m_Intercept; // copy existing  matrix
+   //   vnl_vector<double> tmpB = m_Slope; // copy existing  matrix
+
+   //   // Create new 
+   //   m_Intercept.set_size(n);
+   //   m_Slope.set_size(n);
+
+   //   // Copy old data into new vector.
+   //   for (unsigned int r = 0; r < tmpA.size(); r++)
+   //   {
+   //     m_Intercept(r) = tmpA(r);
+   //     m_Slope(r) = tmpB(r);
+   //   }
+   // }
 
    void ResizeParameters(unsigned int n)
    {
-     vnl_vector<double> tmpA = m_Intercept; // copy existing  matrix
-     vnl_vector<double> tmpB = m_Slope; // copy existing  matrix
+     vnl_matrix<double> tmpA = m_Intercepts; // copy existing  matrix
+     vnl_matrix<double> tmpB = m_Slopes; // copy existing  matrix
 
      // Create new 
-     m_Intercept.set_size(n);
-     m_Slope.set_size(n);
+     m_Intercepts.set_size(m_NumFixedParams / 2, n);
+     m_Slopes.set_size(m_NumFixedParams / 2, n);
 
      // Copy old data into new vector.
-     for (unsigned int r = 0; r < tmpA.size(); r++)
+     for (unsigned int r = 0; r < m_NumFixedParams / 2; r++)
      {
-       m_Intercept(r) = tmpA(r);
-       m_Slope(r) = tmpB(r);
+       m_Intercepts.set_row(r) = tmpA.get_row(r);
+       m_Slopes.set_row(r) = tmpB.get_row(r);
      }
    }
 
@@ -385,23 +401,23 @@ namespace itk
      return m_Intercepts; 
    }
 
-   // void SetSlopes(const vnl_matrix<double> &v)
-   // {
-   //   ResizeParameters(v.size());
-   //   for (unsigned int i = 0; i < v.size(); i++)
-   //   {
-   // 	m_Slope[i] = v[i];
-   //   }    
-   // }
+   void SetSlopes(const vnl_matrix<double> &v)
+   {
+     ResizeParameters(v.cols());
+     for (unsigned int i = 0; i < v.rows(); i++)
+     {
+       m_Slopes[i] = v.get_row(i);
+     }    
+   }
    
-   // void SetIntercept(const std::vector<double> &v)
-   // {
-   //   ResizeParameters(v.size());
-   //   for (unsigned int i = 0; i < v.size(); i++)
-   //   {
-   // 	m_Intercept[i] = v[i];
-   //   }
-   // }
+   void SetIntercepts(const vnl_matrix<double> &v)
+   {
+     ResizeParameters(v.cols());
+     for (unsigned int i = 0; i < v.rows(); i++)
+     {
+       m_Intercepts[i] = v.get_row(i);
+     }
+   }
 
    /*
    void EstimateParameters()
@@ -777,11 +793,13 @@ namespace itk
    }
    */
    // Covariate model version
-   void InitializeCovariateModel()
+   void Initialize()
    {
+     //m_Intercept.fill(0.0);
+     //m_Slope.fill(0.0);
      m_Intercepts.fill(0.0);
      m_Slopes.fill(0.0);
-     
+
      m_MeanMatrix.fill(0.0);
      m_FixedEffectsDesignMatrix.fill(0.0);
      
@@ -789,7 +807,7 @@ namespace itk
      m_InterceptRand.fill(0.0);    
    }
    // Covariate model version
-   virtual void BeforeIterationCovariateModel()
+   virtual void BeforeIteration()
    {
      m_UpdateCounter ++;
      if (m_UpdateCounter >= m_RegressionInterval)

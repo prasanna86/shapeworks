@@ -111,6 +111,7 @@ class ShapeWorksRunApp
   virtual void WriteParameters( int iter = -1 );  
 
   void ReadExplanatoryVariables(const char *fname);
+  void ReadDesignMatrix(const char *fname);
 
   void FlagDomainFct(const char *fname);
 
