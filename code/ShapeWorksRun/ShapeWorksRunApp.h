@@ -144,6 +144,7 @@ protected:
   std::string m_output_points_prefix;
   std::string m_output_transform_file;
   unsigned int m_number_of_particles;
+  unsigned int m_num_fixed_params;
   double m_starting_regularization;
   double m_ending_regularization;
   int m_recompute_regularization_interval;
