@@ -72,15 +72,15 @@ namespace itk
 	 group_indx = group_indx + 1;
 	 indexSum += m_TimeptsPerIndividual(group_indx);
        }
-
+       //std::cout << "D = " << D << std::endl;
        // Adding the appropriate factors
-       for(int j = 0; j < m_NumFixedParams; j++)
-	 tempvect += m_FixedParams.get_row(j) * D(i, j); 
+       tempvect = D.get_row(i) * m_FixedParams; 
        tempvect += m_InterceptRand.get_row(group_indx);
        tempvect += m_SlopeRand.get_row(group_indx) * m_Expl(i);
        // compute the mean
        m_MeanMatrix.set_column(i, tempvect);
      }
+     //std::cout << "mean = " << m_MeanMatrix << std::endl;
    }
   
    // ****************************************************** //
@@ -643,7 +643,7 @@ namespace itk
        Ds.set_identity();
        Ds *= sigma2s;
        //std::cout << "all good here? [2] " << std::endl;
-       for (int j = 0; j < 50; j++) //EM iterations
+       for (int j = 0; j < 100; j++) //EM iterations
        {
 	 sum_mat1.fill(0.0); sum_mat2.fill(0.0);
 	 indexSum = 0;
