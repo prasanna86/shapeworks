@@ -222,6 +222,16 @@ public:
     m_MixedEffectsShapeMatrix->SetNumIndividuals(i);
   }
 
+  void SetNumFixedParams(int i)
+  {
+    m_MixedEffectsShapeMatrix->SetNumFixedParams(i);
+  }
+
+  void SetDesignMatrix(vnl_matrix<double> &v)
+  {
+   m_MixedEffectsShapeMatrix->SetDesignMatrix(v);
+  }
+
   int GetCorrespondenceMode() const
   { return m_CorrespondenceMode; }
 
