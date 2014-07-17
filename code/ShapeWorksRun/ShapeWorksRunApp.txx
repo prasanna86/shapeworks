@@ -1232,10 +1232,13 @@ void
 ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
 {
   std::string slopename, interceptname, fixedparamsname;
+  std::string fshapename0, fshapename1;
   
   slopename = std::string( m_output_points_prefix ) + std::string(".slope");
   interceptname = std::string( m_output_points_prefix ) + std::string(".intercept");
   fixedparamsname = std::string( m_output_points_prefix ) + std::string(".fixedparams");
+  fshapename0 = std::string( m_output_points_prefix ) + std::string(".fshape0");
+  fshapename1 = std::string( m_output_points_prefix ) + std::string(".fshape1");
 	
   if( iter >= 0 )
   {
@@ -1245,19 +1248,22 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
     slopename = "./.iter" + ss.str() + "/" + slopename;
     interceptname = "./.iter" + ss.str() + "/" + interceptname;
     fixedparamsname = "./.iter" + ss.str() + "/" + fixedparamsname;
+    fshapename0 = "./.iter" + ss.str() + "/" + fshapename0;
+    fshapename1 = "./.iter" + ss.str() + "/" + fshapename1;
   }
   
-  std::cout << "writing " << slopename << std::endl;
-  std::cout << "writing " << interceptname << std::endl;
-
   std::vector< double > slope;
   std::vector< double > intercept;
 
   if (m_use_mixed_effects == true)
   {
+    std::cout << "writing " << fixedparamsname << std::endl;
+    std::cout << "writing " << fshapename0 << std::endl;
+    std::cout << "writing " << fshapename1 << std::endl;
+
     vnl_matrix<double> params_mat = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
         (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetFixedParams();
-    
+
     std::ofstream out( fixedparamsname.c_str() );
     
     for (unsigned int i = 0; i < params_mat.rows(); i++)
@@ -1270,6 +1276,31 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
     }
     out.close();
 
+    vnl_vector<double> f_shape0 = params_mat.get_row(0) + params_mat.get_row(1) * 50;
+    vnl_vector<double> f_shape1 = (params_mat.get_row(0) + params_mat.get_row(2)) 
+      + (params_mat.get_row(1) + params_mat.get_row(3)) * 50;
+
+    out.open( fshapename0.c_str() );
+    for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
+    {
+      out << f_shape0(3 * i) << " " << f_shape0(3 * i + 1) << " " << f_shape0(3 * i + 2);
+      out << "\n";
+    }
+    out.close();
+
+    out.open( fshapename1.c_str() );
+    for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
+    {
+      out << f_shape1(3 * i) << " " << f_shape1(3 * i + 1) << " " << f_shape1(3 * i + 2);
+      out << "\n";
+    }
+    out.close();
+
+    std::cout << "fixed params row col sizes = " << params_mat.rows() << " " << params_mat.cols() << std::endl;
+
+    // lets look at some shapes
+
+    // newer code for matrix intercepts and matrix slopes
     // vnl_matrix<double> intercept_mat = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
     //     (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetIntercepts();
     
@@ -1283,8 +1314,6 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
     //   out << "\n";
     // }
     // out.close();
-
-    std::cout << "fixed params row col sizes = " << params_mat.rows() << " " << params_mat.cols() << std::endl;
 
     // // old code for vector outputs
     // vnl_vector<double> slopevec = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
@@ -1361,6 +1390,9 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
   }
   else
   {
+    std::cout << "writing " << slopename << std::endl;
+    std::cout << "writing " << interceptname << std::endl;
+
     vnl_vector<double> slopevec = dynamic_cast<itk::ParticleShapeLinearRegressionMatrixAttribute<double,3> *>
         (m_Sampler->GetEnsembleRegressionEntropyFunction()->GetShapeMatrix())->GetSlope();
 
