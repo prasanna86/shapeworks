@@ -55,6 +55,7 @@ ShapeWorksRunApp<SAMPLERTYPE>::ShapeWorksRunApp(const char *fn)
   m_Sampler->SetDomainsPerShape(m_domains_per_shape); // must be done first!
   m_Sampler->SetNumIndividuals(m_num_subjects);
   m_Sampler->SetTimeptsPerIndividual(m_timepts_per_subject);
+  m_Sampler->SetNumFixedParams(m_num_fixed_params);
 
   // Set up the procrustes registration object.
   m_Procrustes = itk::ParticleProcrustesRegistration<3>::New();
@@ -1195,15 +1196,12 @@ ShapeWorksRunApp<SAMPLERTYPE>::ReadDesignMatrix(const char *fname)
       inputsBuffer.str("");
 
       designFile.open(filename.c_str());
-
-      while (designFile >> val)
+      for(int i = 0; i < indexSum; i++)
       {
-	for(int i = 0; i < indexSum; i++)
+	for(int j = 0; j < m_num_fixed_params; j++)
 	{
-	  for(int j = 0; j < m_num_fixed_params; j++)
-	  {
-	    designMatrix(i, j) = val;
-	  }
+	  designFile >> val;
+	  designMatrix(i, j) = val;
 	}
       }
 
@@ -1233,10 +1231,11 @@ template < class SAMPLERTYPE>
 void
 ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
 {
-  std::string slopename, interceptname;
+  std::string slopename, interceptname, fixedparamsname;
   
   slopename = std::string( m_output_points_prefix ) + std::string(".slope");
   interceptname = std::string( m_output_points_prefix ) + std::string(".intercept");
+  fixedparamsname = std::string( m_output_points_prefix ) + std::string(".fixedparams");
 	
   if( iter >= 0 )
   {
@@ -1245,6 +1244,7 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
 
     slopename = "./.iter" + ss.str() + "/" + slopename;
     interceptname = "./.iter" + ss.str() + "/" + interceptname;
+    fixedparamsname = "./.iter" + ss.str() + "/" + fixedparamsname;
   }
   
   std::cout << "writing " << slopename << std::endl;
@@ -1255,38 +1255,66 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
 
   if (m_use_mixed_effects == true)
   {
-    vnl_vector<double> slopevec = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
-      (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetSlope();
-
-    // vnl_matrix<double> slopevec = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
-    //     (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetSlope();
-
-    for (unsigned int i = 0; i < slopevec.size(); i++)
-    {
-      slope.push_back(slopevec[i]);
-    }
-
-    std::ofstream out( slopename.c_str() );
-    for (unsigned int i = 0; i < slope.size(); i++)
-    {
-      out << slope[i] << "\n";
-    }
-    out.close();
-     
-    vnl_vector<double> interceptvec = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
-      (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetIntercept();
+    vnl_matrix<double> params_mat = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
+        (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetFixedParams();
     
-    for (unsigned int i = 0; i < slopevec.size(); i++)
+    std::ofstream out( fixedparamsname.c_str() );
+    
+    for (unsigned int i = 0; i < params_mat.rows(); i++)
     {
-      intercept.push_back(interceptvec[i]);
-    }
-
-    out.open(interceptname.c_str());
-    for (unsigned int i = 0; i < slope.size(); i++)
-    {
-      out << intercept[i] << "\n";
+      for (unsigned int j = 0; j < params_mat.cols(); j++)
+      {
+        out << params_mat.get(i,j) << " ";
+      }
+      out << "\n";
     }
     out.close();
+
+    // vnl_matrix<double> intercept_mat = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
+    //     (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetIntercepts();
+    
+    // out.open(interceptname.c_str());
+    // for (unsigned int i = 0; i < intercept_mat.rows(); i++)
+    // {
+    //   for (unsigned int j = 0; j < intercept_mat.cols(); j++)
+    //   {
+    //     out << intercept_mat.get(i,j) << " ";
+    //   }
+    //   out << "\n";
+    // }
+    // out.close();
+
+    std::cout << "fixed params row col sizes = " << params_mat.rows() << " " << params_mat.cols() << std::endl;
+
+    // // old code for vector outputs
+    // vnl_vector<double> slopevec = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
+    //   (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetSlope();
+
+    // for (unsigned int i = 0; i < slopevec.size(); i++)
+    // {
+    //   slope.push_back(slopevec[i]);
+    // }
+
+    // for (unsigned int i = 0; i < slope.size(); i++)
+    // {
+    //   out << slope[i] << "\n";
+    // }
+    // out.close();
+     
+    // vnl_vector<double> interceptvec = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
+    //   (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetIntercept();
+    
+    // for (unsigned int i = 0; i < slopevec.size(); i++)
+    // {
+    //   intercept.push_back(interceptvec[i]);
+    // }
+
+    // out.open(interceptname.c_str());
+    // for (unsigned int i = 0; i < slope.size(); i++)
+    // {
+    //   out << intercept[i] << "\n";
+    // }
+    // out.close();
 
     slopename     = std::string( m_output_points_prefix ) + std::string(".sloperand");
     interceptname = std::string( m_output_points_prefix ) + std::string(".interceptrand");

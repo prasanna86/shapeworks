@@ -74,8 +74,8 @@ namespace itk
        }
 
        // Adding the appropriate factors
-       for(int j = 0; j < m_NumFixedParams / 2; j++)
-	 tempvect += m_Intercepts.get_row(j) + m_Slopes.get_row(j) * D(i, j);
+       for(int j = 0; j < m_NumFixedParams; j++)
+	 tempvect += m_FixedParams.get_row(j) * D(i, j); 
        tempvect += m_InterceptRand.get_row(group_indx);
        tempvect += m_SlopeRand.get_row(group_indx) * m_Expl(i);
        // compute the mean
@@ -94,7 +94,7 @@ namespace itk
    inline vnl_vector<double> ComputeMean(double k) const
    {
      //vnl_vector<double> tempvect;
-     return m_Intercepts.get_row(0) + m_Slopes.get_row(0) * k;    
+     return m_Intercept + m_Slope * k;    
    }
 
    // void ResizeParameters(unsigned int n)
@@ -116,19 +116,13 @@ namespace itk
 
    void ResizeParameters(unsigned int n)
    {
-     vnl_matrix<double> tmpA = m_Intercepts; // copy existing  matrix
-     vnl_matrix<double> tmpB = m_Slopes; // copy existing  matrix
+     vnl_matrix<double> tmp = m_FixedParams; // copy existing  matrix
 
      // Create new 
-     m_Intercepts.set_size(m_NumFixedParams / 2, n);
-     m_Slopes.set_size(m_NumFixedParams / 2, n);
+     m_FixedParams.set_size(m_NumFixedParams, n);
 
      // Copy old data into new vector.
-     for (unsigned int r = 0; r < m_NumFixedParams / 2; r++)
-     {
-       m_Intercepts.set_row(r) = tmpA.get_row(r);
-       m_Slopes.set_row(r) = tmpB.get_row(r);
-     }
+     m_FixedParams = tmp;
    }
 
    virtual void ResizeMeanMatrix(int rs, int cs)
@@ -391,32 +385,15 @@ namespace itk
      return this->m_FixedEffectsDesignMatrix;
    }
 
-   const vnl_matrix<double> &GetSlopes() const
+   const vnl_matrix<double> &GetFixedParams() const
    { 
-     return m_Slopes; 
+     return m_FixedParams; 
    }
 
-   const vnl_matrix<double> &GetIntercepts() const
-   { 
-     return m_Intercepts; 
-   }
-
-   void SetSlopes(const vnl_matrix<double> &v)
+   void SetFixedParams(const vnl_matrix<double> &v)
    {
      ResizeParameters(v.cols());
-     for (unsigned int i = 0; i < v.rows(); i++)
-     {
-       m_Slopes[i] = v.get_row(i);
-     }    
-   }
-   
-   void SetIntercepts(const vnl_matrix<double> &v)
-   {
-     ResizeParameters(v.cols());
-     for (unsigned int i = 0; i < v.rows(); i++)
-     {
-       m_Intercepts[i] = v.get_row(i);
-     }
+     m_FixedParams = v;    
    }
 
    /*
@@ -593,7 +570,7 @@ namespace itk
    */
 
    // Estimating mixed-effects parameters for a covariate model (needs to be tested)
-   void EstimateCovariateModelParameters()
+   void EstimateParameters()
    {
      std::cout << "Estimating params" << std::endl;
      //std::cout << "Explanatory: " << m_Expl << std::endl;
@@ -662,7 +639,7 @@ namespace itk
      
      for (int i = 0; i < nr; i++) //for all points (x,y,z coordinates)
      {
-       sigma2s = 0.01;
+       sigma2s = 1;
        Ds.set_identity();
        Ds *= sigma2s;
        //std::cout << "all good here? [2] " << std::endl;
@@ -700,10 +677,13 @@ namespace itk
 	   sum_mat1 = sum_mat1 + vnl_transpose(Xp[k]) * Ws[k] * Xp[k];
 	   sum_mat2 = sum_mat2 + vnl_transpose(Xp[k]) * Ws[k] * y;
 	 }
+	 
+	 //std::cout << "sum_mat1 = " << sum_mat1 << std::endl;
+         //std::cout << "sum_mat2 = " << sum_mat2 << std::endl;
 
 	 tempvect = vnl_inverse(sum_mat1) * sum_mat2;
 	 fixed.set_column(i, tempvect);
-	 
+
 	 indexSum = 0; // re-initializing
 	 ecorr = 0.0; 
 	 tracevar = 0.0;
@@ -748,11 +728,8 @@ namespace itk
        } //end for EM iterations
      } // end for all points on shape (x,y & z)
 
-     for(int i = 0; i < m_NumFixedParams / 2; i++)
-     {
-       m_Intercepts.set_row(i, fixed.get_row(i));
-       m_Slopes.set_row(i, fixed.get_row(i + (m_NumFixedParams / 2)));
-     }
+     // fixed effects parameters
+     m_FixedParams = fixed;
 
      for (int i = 0; i < m_NumIndividuals; i++)
      {
@@ -797,8 +774,7 @@ namespace itk
    {
      //m_Intercept.fill(0.0);
      //m_Slope.fill(0.0);
-     m_Intercepts.fill(0.0);
-     m_Slopes.fill(0.0);
+     m_FixedParams.fill(0.0);
 
      m_MeanMatrix.fill(0.0);
      m_FixedEffectsDesignMatrix.fill(0.0);
@@ -813,8 +789,8 @@ namespace itk
      if (m_UpdateCounter >= m_RegressionInterval)
      {
        m_UpdateCounter = 0;
-       this->EstimateCovariateModelParameters();
-       this->UpdateCovariateModelMeanMatrix();
+       this->EstimateParameters();
+       this->UpdateMeanMatrix();
      }
    }
 
@@ -863,8 +839,7 @@ namespace itk
    vnl_vector<double> m_Slope;
 
    // I could make the above matrices, but till then:
-    vnl_matrix<double> m_Intercepts;
-    vnl_matrix<double> m_Slopes;
+   vnl_matrix<double> m_FixedParams;
 
    // The explanatory variable value for each sample (matrix column)
    vnl_vector<double> m_Expl;
