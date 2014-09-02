@@ -1276,9 +1276,9 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
     }
     out.close();
 
-    vnl_vector<double> f_shape0 = params_mat.get_row(0) + params_mat.get_row(1) * 50;
+    vnl_vector<double> f_shape0 = params_mat.get_row(0) + params_mat.get_row(1) * 30;
     vnl_vector<double> f_shape1 = (params_mat.get_row(0) + params_mat.get_row(2)) 
-      + (params_mat.get_row(1) + params_mat.get_row(3)) * 50;
+      + (params_mat.get_row(1)) * 30;
 
     out.open( fshapename0.c_str() );
     for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
