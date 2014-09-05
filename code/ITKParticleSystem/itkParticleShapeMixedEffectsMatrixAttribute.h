@@ -74,7 +74,7 @@ namespace itk
        }
        //std::cout << "D = " << D << std::endl;
        // Adding the appropriate factors
-       tempvect = D.get_row(i) * m_FixedParams; 
+       tempvect = D.get_row(i) * m_FixedParams; // this is slow. can do better!!
        tempvect += m_InterceptRand.get_row(group_indx);
        tempvect += m_SlopeRand.get_row(group_indx) * m_Expl(i);
        // compute the mean
