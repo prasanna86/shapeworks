@@ -1232,14 +1232,21 @@ void
 ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
 {
   std::string slopename, interceptname, fixedparamsname;
-  std::string fshapename0, fshapename1;
+  std::string fshapename0, fshapename1, mshapename0, mshapename1;
+  std::string fvecname0, fvecname1, mvecname0, mvecname1;
   
   slopename = std::string( m_output_points_prefix ) + std::string(".slope");
   interceptname = std::string( m_output_points_prefix ) + std::string(".intercept");
   fixedparamsname = std::string( m_output_points_prefix ) + std::string(".fixedparams");
   fshapename0 = std::string( m_output_points_prefix ) + std::string(".fshape0");
   fshapename1 = std::string( m_output_points_prefix ) + std::string(".fshape1");
-	
+  mshapename0 = std::string( m_output_points_prefix ) + std::string(".mshape0");
+  mshapename1 = std::string( m_output_points_prefix ) + std::string(".mshape1");
+  fvecname0 = std::string( m_output_points_prefix ) + std::string(".fvec0");
+  fvecname1 = std::string( m_output_points_prefix ) + std::string(".fvec1");
+  mvecname0 = std::string( m_output_points_prefix ) + std::string(".mvec0");
+  mvecname1 = std::string( m_output_points_prefix ) + std::string(".mvec1");
+
   if( iter >= 0 )
   {
     std::stringstream ss;
@@ -1250,6 +1257,13 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
     fixedparamsname = "./.iter" + ss.str() + "/" + fixedparamsname;
     fshapename0 = "./.iter" + ss.str() + "/" + fshapename0;
     fshapename1 = "./.iter" + ss.str() + "/" + fshapename1;
+    mshapename0 = "./.iter" + ss.str() + "/" + mshapename0;
+    mshapename1 = "./.iter" + ss.str() + "/" + mshapename1;
+
+    fvecname0 = "./.iter" + ss.str() + "/" + fvecname0;
+    fvecname1 = "./.iter" + ss.str() + "/" + fvecname1;
+    mvecname0 = "./.iter" + ss.str() + "/" + mvecname0;
+    mvecname1 = "./.iter" + ss.str() + "/" + mvecname1;
   }
   
   std::vector< double > slope;
@@ -1260,6 +1274,12 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
     std::cout << "writing " << fixedparamsname << std::endl;
     std::cout << "writing " << fshapename0 << std::endl;
     std::cout << "writing " << fshapename1 << std::endl;
+    std::cout << "writing " << mshapename0 << std::endl;
+    std::cout << "writing " << mshapename1 << std::endl;
+    std::cout << "writing " << fvecname0 << std::endl;
+    std::cout << "writing " << fvecname1 << std::endl;
+    std::cout << "writing " << mvecname0 << std::endl;
+    std::cout << "writing " << mvecname1 << std::endl;
 
     vnl_matrix<double> params_mat = dynamic_cast<itk::ParticleShapeMixedEffectsMatrixAttribute<double,3> *>
         (m_Sampler->GetEnsembleMixedEffectsEntropyFunction()->GetShapeMatrix())->GetFixedParams();
@@ -1276,10 +1296,27 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
     }
     out.close();
 
-    vnl_vector<double> f_shape0 = params_mat.get_row(0) + params_mat.get_row(1) * 30;
+    // shapes - female and male
+    vnl_vector<double> f_shape0 = params_mat.get_row(0) + params_mat.get_row(3) * 50;
     vnl_vector<double> f_shape1 = (params_mat.get_row(0) + params_mat.get_row(2)) 
-      + (params_mat.get_row(1)) * 30;
+      + (params_mat.get_row(3) + params_mat.get_row(5)) * 50;
 
+    vnl_vector<double> m_shape0 = (params_mat.get_row(0) + params_mat.get_row(1)) + 
+      (params_mat.get_row(3) + params_mat.get_row(4)) * 50;
+    vnl_vector<double> m_shape1 = (params_mat.get_row(0) + params_mat.get_row(1) + 
+				   params_mat.get_row(2)) + (params_mat.get_row(3) + 
+							     params_mat.get_row(4) + 
+							     params_mat.get_row(5)) * 50;
+
+    // vectors - female and male
+    vnl_vector<double> f_vec0 = params_mat.get_row(3);
+    vnl_vector<double> f_vec1 = params_mat.get_row(3) + params_mat.get_row(5);
+
+    vnl_vector<double> m_vec0 = params_mat.get_row(3) + params_mat.get_row(4);
+    vnl_vector<double> m_vec1 = params_mat.get_row(3) + 
+      params_mat.get_row(4) + params_mat.get_row(5);
+
+    // printing out the shapes
     out.open( fshapename0.c_str() );
     for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
     {
@@ -1292,6 +1329,55 @@ ShapeWorksRunApp<SAMPLERTYPE>::WriteParameters( int iter )
     for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
     {
       out << f_shape1(3 * i) << " " << f_shape1(3 * i + 1) << " " << f_shape1(3 * i + 2);
+      out << "\n";
+    }
+    out.close();
+
+    out.open( mshapename0.c_str() );
+    for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
+    {
+      out << m_shape0(3 * i) << " " << m_shape0(3 * i + 1) << " " << m_shape0(3 * i + 2);
+      out << "\n";
+    }
+    out.close();
+
+    out.open( mshapename1.c_str() );
+    for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
+    {
+      out << m_shape1(3 * i) << " " << m_shape1(3 * i + 1) << " " << m_shape1(3 * i + 2);
+      out << "\n";
+    }
+    out.close();
+
+    // printing out the vecs
+    out.open( fvecname0.c_str() );
+    for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
+    {
+      out << f_vec0(3 * i) << " " << f_vec0(3 * i + 1) << " " << f_vec0(3 * i + 2);
+      out << "\n";
+    }
+    out.close();
+
+    out.open( fvecname1.c_str() );
+    for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
+    {
+      out << f_vec1(3 * i) << " " << f_vec1(3 * i + 1) << " " << f_vec1(3 * i + 2);
+      out << "\n";
+    }
+    out.close();
+
+    out.open( mvecname0.c_str() );
+    for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
+    {
+      out << m_vec0(3 * i) << " " << m_vec0(3 * i + 1) << " " << m_vec0(3 * i + 2);
+      out << "\n";
+    }
+    out.close();
+
+    out.open( mvecname1.c_str() );
+    for (unsigned int i = 0; i < params_mat.cols() / 3; i++)
+    {
+      out << m_vec1(3 * i) << " " << m_vec1(3 * i + 1) << " " << m_vec1(3 * i + 2);
       out << "\n";
     }
     out.close();
